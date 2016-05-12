@@ -5,8 +5,9 @@ describe "running the middleman cli" do
   it "generates 'search.json'" do
     Dir.chdir("spec/fixtures/swiftype-app") do
       ENV['MM_ROOT'] = Dir.pwd
-      builder = Middleman::Cli::Build.new
-      builder.invoke(:build)
+      # builder = Middleman::Cli::Build.new
+      # builder.invoke(:build)
+      system("middleman build")
       expect(File).to exist("build/search.json")
       system("rm -rf build/*")
     end

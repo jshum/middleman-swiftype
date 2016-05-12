@@ -1,4 +1,4 @@
-require 'middleman-core/cli'
+require 'middleman-cli'
 require 'middleman-swiftype/pkg-info'
 require 'middleman-swiftype-helper'
 
@@ -9,7 +9,7 @@ module Middleman
   module Cli
 
     # This class provides a "swiftype" command for the middleman CLI.
-    class Swiftype < Thor
+    class Swiftype < Thor::Group
       include Thor::Actions
 
       check_unknown_options!
@@ -21,21 +21,46 @@ module Middleman
         true
       end
 
-      desc "swiftype", "Push your documents to swiftype"
-      method_option "clean",
-        :type => :boolean,
-        :aliases => "-c",
-        :desc => "Remove orphaned files or directories on the remote host"
-      method_option "only-generate",
-        :type => :boolean,
-        :aliases => "-g",
-        :desc => "Generate a search.json file without pushing it"
+      class_option :environment,
+                  aliases: '-e',
+                  default: ENV['MM_ENV'] || ENV['RACK_ENV'] || 'production',
+                  desc: 'The environment Middleman will run under'
+
+      class_option :verbose,
+                  type: :boolean,
+                  default: false,
+                  desc: 'Print debug messages'
+
+      class_option :instrument,
+                  type: :string,
+                  default: false,
+                  desc: 'Print instrument messages'
+
+      class_option :clean,
+                  type: :boolean,
+                  aliases: '-c',
+                  desc: "Remove orphaned files or directories on the remote host"
+
+      class_option :'only-generate',
+                  type: :boolean,
+                  alises: '-g',
+                  desc: "Generate a search.json file without pushing it"
 
       def swiftype
-        mm_instance = Middleman::Application.server.inst
+
+        env = options['environment'] ? :production : options['environment'].to_s.to_sym
+        verbose = options['verbose'] ? 0 : 1
+        instrument = options['instrument']
+
+        app = ::Middleman::Application.new do
+          config[:mode] = :build
+          config[:environment] = env
+          ::Middleman::Logger.singleton(verbose, instrument)
+        end
         generate_only = options[:"only-generate"]
-        plugin_options = swiftype_options(mm_instance, generate_only)
-        helper = MiddlemanSwiftypeHelper.new plugin_options
+
+        plugin_options = swiftype_options(generate_only)
+        helper = MiddlemanSwiftypeHelper.new app, plugin_options
 
         if generate_only
           helper.generate_search_json
@@ -47,7 +72,7 @@ module Middleman
       protected
 
       def print_usage_and_die(message)
-        raise Error, "ERROR: " + message + "\n" + <<EOF
+        fail StandardError, "ERROR: " + message + "\n" + <<EOF
 
 You should follow one of the three examples below to setup the swiftype
 extension in config.rb.
@@ -67,11 +92,12 @@ end
 EOF
       end
 
-      def swiftype_options(mm_instance, generate_only)
+      def swiftype_options(generate_only)
         options = nil
 
         begin
-          options = mm_instance.swiftype.options
+          # swiftype_options are saved as a class attribute when middleman configurations are loaded
+          options = ::Middleman::Swiftype.swiftype_options
         rescue
           print_usage_and_die "You need to activate the swiftype extension in config.rb."
         end
@@ -89,5 +115,9 @@ EOF
         options
       end
     end
+
+    # Need to add this so that swiftype is recognized as an argument
+    Base.register(Middleman::Cli::Swiftype, 'swiftype', 'swiftype [options]', "Push your documents to swiftype")
+
   end
 end

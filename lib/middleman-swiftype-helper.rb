@@ -3,9 +3,9 @@ require 'nokogiri'
 require 'digest'
 
 class MiddlemanSwiftypeHelper
-  def initialize(plugin_options)
+  def initialize(app, plugin_options)
     @options = plugin_options
-    @mm_instance = Middleman::Application.server.inst
+    @mm_instance = app
   end
 
   def swiftype_document_type
@@ -96,7 +96,7 @@ class MiddlemanSwiftypeHelper
       # https://swiftype.com/documentation/crawler#schema
       # https://swiftype.com/documentation/meta_tags
       url_field = record[:fields].find { |fields| fields[:name] == "url" }
-      @mm_instance.logger.info("Pushing contents of #{url_field[:value]} to swiftype")
+      Middleman::Logger.singleton.info("Pushing contents of #{url_field[:value]} to swiftype")
       #next
       begin
         swiftype_client.create_or_update_document(@options.engine_slug, swiftype_document_type, {
@@ -114,14 +114,14 @@ class MiddlemanSwiftypeHelper
   end
 
   def generate_search_json
-    @mm_instance.logger.info("Generating search.json...")
+    Middleman::Logger.singleton.info("Generating search.json...")
 
-    File.open("./#{Middleman::Application.build_dir}/search.json", "w") do |f|
+    File.open("./#{@mm_instance.config.build_dir}/search.json", "w") do |f|
       f.write("{\"documents\": ")
       f.write(self.generate_swiftype_records.to_json)
       f.write("}")
     end
 
-    @mm_instance.logger.info("Finished generating search.json.")
+    Middleman::Logger.singleton.info("Finished generating search.json.")
   end
 end

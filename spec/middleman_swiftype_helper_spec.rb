@@ -15,7 +15,12 @@ describe MiddlemanSwiftypeHelper do
 
   it 'generates JSON in which the body type is "string"' do
     Dir.chdir("spec/fixtures/swiftype-app") do
-      helper = MiddlemanSwiftypeHelper.new(options)
+
+      app = ::Middleman::Application.new do
+        config[:mode] = :build
+      end
+
+      helper = MiddlemanSwiftypeHelper.new(app, options)
       json = helper.generate_swiftype_records
       body_type = json[0][:fields][2][:type]
       expect(body_type).to eq "string"
